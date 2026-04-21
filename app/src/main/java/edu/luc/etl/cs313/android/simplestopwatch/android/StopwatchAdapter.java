@@ -1,20 +1,16 @@
 package edu.luc.etl.cs313.android.simplestopwatch.android;
 
 import android.app.Activity;
+import android.media.AudioManager; // for managing audio streams
+import android.media.MediaPlayer; // for playing the bundled alarm sound
+import android.media.ToneGenerator;  // for generating simple tones for the beep
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
-import android.content.Context; // for accessing the application context
-import android.media.AudioAttributes; // for configuring the audio playback attributes
-import android.media.MediaPlayer; // for playing the notification sound
-import android.media.RingtoneManager; // for accessing the default notification sound URI
-import android.net.Uri;  // for handling the URI of the notification sound
-import java.io.IOException; // for handling IOExceptions that might occur with MediaPlayer
-import android.media.AudioManager; // for managing audio streams
-import android.media.ToneGenerator;  // for generating simple tones for the beep
 
 import java.util.Locale;
 
@@ -37,44 +33,21 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
      * The state-based dynamic model.
      */
     private StopwatchModelFacade model;
+    private volatile int currentStateId = R.string.STOPPED;
 
     protected void setModel(final StopwatchModelFacade model) {
         this.model = model;
     }
 
-    /** Plays the default notification sound. */
+    /** Plays the bundled alarm sound. */
     public void playDefaultNotification(){
-        // get the URI for the default notification sound with RingtoneManager
-        final Uri defaultRingtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-        // create new instance of MediaPlayer for playing the notification
-        final MediaPlayer mediaPlayer = new MediaPlayer();
-
-        // get application context for avoiding memory leaks with long-lived references
-        final Context context = getApplicationContext();
-
-        try{
-            // set data source for the MediaPlayer with the default notification sound URI
-            mediaPlayer.setDataSource(context, defaultRingtoneUri);
-
-            // configure audio attributes for the MediaPlayer
-            mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM) // the usage is for alarms
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)  // content type sound for UI feedback
-                    .build());
-
-            // prepare MediaPlayer for playback, synchronously loads the data for playback
-            mediaPlayer.prepare();
-
-            // set a listener to release MediaPlayer resources when playback is completed
-            mediaPlayer.setOnCompletionListener(MediaPlayer::release);
-
-            // start playing the alarm sound
-            mediaPlayer.start();
-        } catch (final IOException ex){
-            // if an IOException occurs, wrap it in a RuntimeException and throw it
-            throw new RuntimeException(ex);
+        final MediaPlayer mediaPlayer =
+                MediaPlayer.create(this, R.raw.app_src_main_res_raw_alarm_beep);
+        if (mediaPlayer == null) {
+            return;
         }
+        mediaPlayer.setOnCompletionListener(MediaPlayer::release);
+        mediaPlayer.start();
     }
 
     /** plays the beep sound that happens before decrementing */
@@ -121,7 +94,7 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
         runOnUiThread(() -> {
             final TextView tvS = findViewById(R.id.seconds);
             final var locale = Locale.getDefault();
-            tvS.setText(String.format(locale,"%02d", time % Constants.SEC_PER_MIN));
+            tvS.setText(String.format(locale, "%02d", time));
         });
     }
 
@@ -130,14 +103,74 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
      * @param stateId
      */
     public void onStateUpdate(final int stateId) {
+        currentStateId = stateId;
         // UI adapter responsibility to schedule incoming events on UI thread
         runOnUiThread(() -> {
             final TextView stateName = findViewById(R.id.stateName);
+            final TextView stateHint = findViewById(R.id.stateHint);
+            final Button actionButton = findViewById(R.id.onAction);
             stateName.setText(getString(stateId));
+            stateHint.setText(getStateHint(stateId));
+            actionButton.setText(getActionLabel(stateId));
+            actionButton.setEnabled(isPrimaryButtonEnabled(stateId));
         });
     }
 
+    private boolean isPrimaryButtonEnabled(final int stateId) {
+        return stateId == R.string.STOPPED || stateId == R.string.ALARMING;
+    }
+
+    private int getStateHint(final int stateId) {
+        if (stateId == R.string.INCREMENTING) {
+            return R.string.state_hint_incrementing;
+        }
+        if (stateId == R.string.DECREMENTING) {
+            return R.string.state_hint_decrementing;
+        }
+        if (stateId == R.string.ALARMING) {
+            return R.string.state_hint_alarming;
+        }
+        if (stateId == R.string.RUNNING) {
+            return R.string.state_hint_running;
+        }
+        if (stateId == R.string.LAP_RUNNING) {
+            return R.string.state_hint_lap_running;
+        }
+        if (stateId == R.string.LAP_STOPPED) {
+            return R.string.state_hint_lap_stopped;
+        }
+        return R.string.state_hint_stopped;
+    }
+
+    private int getActionLabel(final int stateId) {
+        if (stateId == R.string.INCREMENTING) {
+            return R.string.activate_more;
+        }
+        if (stateId == R.string.DECREMENTING) {
+            return R.string.activate_cancel;
+        }
+        if (stateId == R.string.ALARMING) {
+            return R.string.activate_acknowledge;
+        }
+        if (stateId == R.string.RUNNING
+                || stateId == R.string.LAP_RUNNING
+                || stateId == R.string.LAP_STOPPED) {
+            return R.string.activate_disabled;
+        }
+        return R.string.activate_add;
+    }
+
     // forward event listener methods to the model
+    public void onPrimaryButton(final View view) {
+        if (currentStateId == R.string.STOPPED) {
+            model.onStartStop();
+            return;
+        }
+        if (currentStateId == R.string.ALARMING) {
+            model.onAction();
+        }
+    }
+
     public void onAction(final View view) {
         model.onAction();
     }

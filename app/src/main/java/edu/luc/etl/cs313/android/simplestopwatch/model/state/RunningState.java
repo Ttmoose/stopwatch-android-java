@@ -24,8 +24,24 @@ class RunningState implements StopwatchState {
 
     @Override
     public void onTick() {
-        sm.actionInc();
+        sm.actionIncCount();
+        if (sm.getRunCount() >= 1) {
+            sm.actionStop();
+            sm.toAlarmingState();
+            sm.actionRingTheAlarm();
+            return;
+        }
         sm.toRunningState();
+    }
+
+    @Override
+    public void onAction() {
+        // Ignore repeated presses while the timer is running.
+    }
+
+    @Override
+    public void onDecrement() {
+        // Ignore decrement requests while acting as a stopwatch.
     }
 
     @Override

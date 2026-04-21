@@ -13,44 +13,45 @@ class IncrementingState implements StopwatchState {
     @Override
     public void onStartStop() {
         sm.actionStop();
+        sm.resetTickCount();
         sm.toStoppedState();
     }
 
     @Override
     public void onLapReset() {
+        sm.actionStop();
+        sm.resetTickCount();
+        sm.actionResetRunCount();
         sm.toStoppedState();
-        sm.actionReset();
     }
 
     @Override
     public void onAction() {
-        // increment the runTimeCount and reset the Tick Count
-        // also reset the 3 second timer
+        // Each tap extends the setup window and increments the countdown target.
         sm.actionIncCount();
         sm.resetTickCount();
-        sm.actionReset();
-        if (sm.getRunCount() == 99) {
-            sm.actionBeep(); // play beep notification before decrementing from max
+        if (sm.getRunCount() >= 99) {
+            sm.actionBeep();
             sm.toDecrementingState();
         }
-
     }
 
     @Override
     public void onTick() {
-        // since clock is started onTick is now activated every second
-        // increase the tickCount and check if 3 seconds has passed,
-        // if yes then start decrementing
+        // Transition to countdown mode after three seconds of inactivity.
         sm.incTickCount();
-        if (sm.getTickCount() > 3) {
-            sm.actionBeep();  // play beep notification before decrementing
+        if (sm.getTickCount() >= 3) {
+            sm.resetTickCount();
+            sm.actionBeep();
             sm.toDecrementingState();
         }
     }
 
     @Override
     public void onDecrement() {
-        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
+        sm.resetTickCount();
+        sm.actionBeep();
+        sm.toDecrementingState();
     }
 
     @Override

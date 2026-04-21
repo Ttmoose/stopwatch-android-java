@@ -15,30 +15,32 @@ class AlarmingState implements StopwatchState {
     @Override
     public void onStartStop() {
         sm.actionStop();
+        sm.actionResetRunCount();
         sm.toStoppedState();
-
     }
 
     @Override
     public void onLapReset() {
-        sm.actionLap();
-        sm.toLapRunningState();
+        sm.actionStop();
+        sm.actionResetRunCount();
+        sm.toStoppedState();
     }
 
     @Override
     public void onTick() {
-        sm.actionRingTheAlarm(); // trigger alarm action while in StoppedState
+        // The alarm is triggered on entry; no periodic ticking should remain.
     }
 
     @Override
     public void onDecrement() {
-        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
+        // Ignore decrement requests while alarm is active.
     }
 
 
     @Override
     public void onAction() {
         sm.actionStop();
+        sm.actionResetRunCount();
         sm.toStoppedState();
     }
 

@@ -12,8 +12,11 @@ class StoppedState implements StopwatchState {
 
     @Override
     public void onStartStop() {
+        sm.actionResetRunCount();
+        sm.resetTickCount();
+        sm.actionReset();
         sm.actionStart();
-        sm.toAlarmingState();
+        sm.toRunningState();
     }
 
     @Override
@@ -24,19 +27,21 @@ class StoppedState implements StopwatchState {
 
     @Override
     public void onAction() {
-        // When onIncrement button is pressed, start the clock model for 3 second timer
-        // while switching to incrementing state and increase the count
+        sm.actionResetRunCount();
+        sm.resetTickCount();
+        sm.actionReset();
         sm.actionStart();
-        sm.actionIncCount();
-        sm.toIncrementingState();
+        sm.toRunningState();
     }
 
     @Override
-    public void onTick() {throw new UnsupportedOperationException("onTick");}
+    public void onTick() {
+        // Ignore any stale tick that arrives after the clock was stopped.
+    }
 
     @Override
     public void onDecrement() {
-        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
+        // Ignore decrement requests while stopped.
     }
 
     @Override

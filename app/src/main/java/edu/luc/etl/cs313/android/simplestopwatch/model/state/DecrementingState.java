@@ -18,18 +18,20 @@ class DecrementingState implements StopwatchState {
 
     @Override
     public void onLapReset() {
-        // no action
+        sm.actionResetRunCount();
+        sm.actionStop();
+        sm.toStoppedState();
     }
 
     @Override
     public void onDecrement() {
-        // no action
+        sm.actionResetRunCount();
+        sm.actionStop();
+        sm.toStoppedState();
     }
 
     @Override
     public void onAction() {
-        // if onIncrement button is pressed, runCount is resetted and
-        // sent to stopped state
         sm.actionResetRunCount();
         sm.actionStop();
         sm.toStoppedState();
@@ -37,12 +39,12 @@ class DecrementingState implements StopwatchState {
 
     @Override
     public void onTick() {
-        // once in decrement state, since clock is still going we now
-        // decrement the runTime count until it reaches 0, then we go to
-        // stopped state when 0 is reached
+        // Count down from the armed value and fire the alarm once it expires.
         sm.actionDecCount();
-        if (sm.runCount == 0) {
+        if (sm.getRunCount() == 0) {
+            sm.actionStop();
             sm.toAlarmingState();
+            sm.actionRingTheAlarm();
         }
     }
 

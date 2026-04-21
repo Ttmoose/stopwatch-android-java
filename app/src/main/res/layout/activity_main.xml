@@ -16,6 +16,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="40sp" />
+
+        <TextView
+                android:id="@+id/stateHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/stateName"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="@string/state_hint_stopped"
+                android:textSize="18sp" />
     </RelativeLayout>
 
     <!--
@@ -38,6 +49,15 @@
                 android:text="@string/seconds"
                 android:textSize="80sp"
                 android:textStyle="bold" />
+
+        <TextView
+                android:id="@+id/timerLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/seconds"
+                android:layout_centerHorizontal="true"
+                android:text="@string/timer_label"
+                android:textSize="16sp" />
     </RelativeLayout>
 
     <RelativeLayout
@@ -51,7 +71,7 @@
                 android:id="@+id/onAction"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:onClick="onAction"
+                android:onClick="onPrimaryButton"
                 android:text="@string/activate"/>
 
     </RelativeLayout>

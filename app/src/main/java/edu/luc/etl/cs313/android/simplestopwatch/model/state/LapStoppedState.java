@@ -24,18 +24,17 @@ class LapStoppedState implements StopwatchState {
 
     @Override
     public void onAction() {
-        sm.actionIncCount();
-        sm.toIncrementingState();
+        // The stopwatch has no separate action while paused in lap mode.
     }
 
     @Override
     public void onDecrement() {
-        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
+        // The stopwatch ignores decrement requests in lap-stopped mode.
     }
 
     @Override
     public void onTick() {
-        throw new UnsupportedOperationException("onTick");
+        // Ignore any stale tick that arrives after the clock was stopped.
     }
 
     @Override

@@ -20,7 +20,7 @@ public class DefaultStopwatchStateMachine implements StopwatchStateMachine {
 
     private final ClockModel clockModel;
 
-    public int runCount = 0;
+    private int runCount = 0;
 
     private int tickCount = 0;
 
@@ -56,6 +56,7 @@ public class DefaultStopwatchStateMachine implements StopwatchStateMachine {
 
     // known states
     private final StopwatchState STOPPED      = new StoppedState(this);
+    private final StopwatchState RUNNING      = new RunningState(this);
     private final StopwatchState ALARMING     = new AlarmingState(this);
     private final StopwatchState LAP_RUNNING  = new LapRunningState(this);
     private final StopwatchState LAP_STOPPED  = new LapStoppedState(this);
@@ -63,6 +64,7 @@ public class DefaultStopwatchStateMachine implements StopwatchStateMachine {
     private final StopwatchState DECREMENTING = new DecrementingState(this);
 
     // transitions
+    @Override public void toRunningState()      { setState(RUNNING); }
     @Override public void toAlarmingState()     { setState(ALARMING); }
     @Override public void toStoppedState()      { setState(STOPPED); }
     @Override public void toLapRunningState()   { setState(LAP_RUNNING); }
@@ -71,22 +73,20 @@ public class DefaultStopwatchStateMachine implements StopwatchStateMachine {
     @Override public void toDecrementingState() { setState(DECREMENTING); }
 
     // actions
-    @Override public void actionInit()          { toStoppedState(); actionReset(); }
-    @Override public void actionReset()         { timeModel.resetRuntime();} // deleted updated view, checking to just use timer for the 3 second
+    @Override public void actionInit()          { resetTickCount(); runCount = 0; toStoppedState(); actionReset(); }
+    @Override public void actionReset()         { timeModel.resetRuntime(); actionUpdateView(); }
     @Override public void actionStart()         { clockModel.start(); }
     @Override public void actionStop()          { clockModel.stop(); }
     @Override public void actionLap()           { timeModel.setLaptime(); }
-    @Override public void actionInc()           { timeModel.incRuntime(); } // same thing here
+    @Override public void actionInc()           { timeModel.incRuntime(); }
     @Override public void actionUpdateView()    { state.updateView(); }
-    @Override public void actionIncCount()      { runCount++; timeModel.setRunCount(runCount); actionUpdateView(); } // increment the runCount
-    @Override public void actionDecCount()      { runCount--; timeModel.setRunCount(runCount); actionUpdateView(); } // begin to Decrement the count
+    @Override public void actionIncCount()      { runCount++; timeModel.setRunCount(runCount); actionUpdateView(); }
+    @Override public void actionDecCount()      { runCount = Math.max(0, runCount - 1); timeModel.setRunCount(runCount); actionUpdateView(); }
     @Override public void actionResetRunCount() { runCount = 0; timeModel.setRunCount(runCount); actionUpdateView(); }
-    @Override public void actionRingTheAlarm()  { listener.playDefaultNotification();} // notify listener to play the alarm sound
-    @Override public void actionBeep()          { listener.playBeep();} // notify listener to play beep tone
+    @Override public void actionRingTheAlarm()  { listener.playDefaultNotification(); }
+    @Override public void actionBeep()          { listener.playBeep(); }
 
     // methods to assist with incrementing/decrementing
-    @Override public int getRuntime()      { return timeModel.getRuntime(); }
-    @Override public void decRunTime()     { timeModel.decRunTime(); }
     @Override public void incTickCount()   { tickCount++; }
     @Override public int getTickCount()    { return tickCount; }
     @Override public void resetTickCount() { tickCount = 0; }

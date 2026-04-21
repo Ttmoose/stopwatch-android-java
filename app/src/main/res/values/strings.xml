@@ -12,10 +12,23 @@
     <string name="seconds">00</string>
     <string name="colon">:</string>
     <string name="activate">Activate</string>
+    <string name="activate_add">Start</string>
+    <string name="activate_more">Start</string>
+    <string name="activate_cancel">Reset To 0</string>
+    <string name="activate_acknowledge">Reset To 0</string>
+    <string name="activate_disabled">Running...</string>
+    <string name="timer_label">Seconds</string>
+    <string name="state_hint_stopped">Tap Start to run from 0 until the alarm sounds at 1.</string>
+    <string name="state_hint_incrementing">Tap Start to begin timing from 0.</string>
+    <string name="state_hint_decrementing">Timer is active.</string>
+    <string name="state_hint_alarming">Alarm is sounding. Tap Reset To 0.</string>
+    <string name="state_hint_running">Timer is running to 1. Reset becomes available after the alarm.</string>
+    <string name="state_hint_lap_running">Lap time is being held while the stopwatch continues.</string>
+    <string name="state_hint_lap_stopped">Lap view is paused.</string>
 
     <!-- model state display names -->
     <string name="STOPPED">Stopped</string>
-    <!--    <string name="RUNNING">Running</string>-->
+    <string name="RUNNING">Running</string>
     <string name="ALARMING">Alarming</string>
     <string name="LAP_RUNNING">Lap/Running</string>
     <string name="LAP_STOPPED">Lap/Stopped</string>
