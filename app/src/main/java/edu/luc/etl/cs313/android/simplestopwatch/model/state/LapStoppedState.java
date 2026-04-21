@@ -23,6 +23,17 @@ class LapStoppedState implements StopwatchState {
     }
 
     @Override
+    public void onAction() {
+        sm.actionIncCount();
+        sm.toIncrementingState();
+    }
+
+    @Override
+    public void onDecrement() {
+        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
+    }
+
+    @Override
     public void onTick() {
         throw new UnsupportedOperationException("onTick");
     }

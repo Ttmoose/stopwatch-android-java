@@ -2,9 +2,19 @@ package edu.luc.etl.cs313.android.simplestopwatch.android;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.View;
 import android.widget.TextView;
+import android.content.Context; // for accessing the application context
+import android.media.AudioAttributes; // for configuring the audio playback attributes
+import android.media.MediaPlayer; // for playing the notification sound
+import android.media.RingtoneManager; // for accessing the default notification sound URI
+import android.net.Uri;  // for handling the URI of the notification sound
+import java.io.IOException; // for handling IOExceptions that might occur with MediaPlayer
+import android.media.AudioManager; // for managing audio streams
+import android.media.ToneGenerator;  // for generating simple tones for the beep
 
 import java.util.Locale;
 
@@ -30,6 +40,51 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
 
     protected void setModel(final StopwatchModelFacade model) {
         this.model = model;
+    }
+
+    /** Plays the default notification sound. */
+    public void playDefaultNotification(){
+        // get the URI for the default notification sound with RingtoneManager
+        final Uri defaultRingtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
+        // create new instance of MediaPlayer for playing the notification
+        final MediaPlayer mediaPlayer = new MediaPlayer();
+
+        // get application context for avoiding memory leaks with long-lived references
+        final Context context = getApplicationContext();
+
+        try{
+            // set data source for the MediaPlayer with the default notification sound URI
+            mediaPlayer.setDataSource(context, defaultRingtoneUri);
+
+            // configure audio attributes for the MediaPlayer
+            mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM) // the usage is for alarms
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)  // content type sound for UI feedback
+                    .build());
+
+            // prepare MediaPlayer for playback, synchronously loads the data for playback
+            mediaPlayer.prepare();
+
+            // set a listener to release MediaPlayer resources when playback is completed
+            mediaPlayer.setOnCompletionListener(MediaPlayer::release);
+
+            // start playing the alarm sound
+            mediaPlayer.start();
+        } catch (final IOException ex){
+            // if an IOException occurs, wrap it in a RuntimeException and throw it
+            throw new RuntimeException(ex);
+        }
+    }
+
+    /** plays the beep sound that happens before decrementing */
+    public void playBeep(){
+        // ToneGenerator instance with specific stream type & volume
+        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+        // play a short beep tone
+        toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300);
+        // release ToneGenerator after a delay to ensure the tone completes
+        new Handler(Looper.getMainLooper()).postDelayed(toneGenerator::release, 200);
     }
 
     @Override
@@ -65,10 +120,8 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
         // UI adapter responsibility to schedule incoming events on UI thread
         runOnUiThread(() -> {
             final TextView tvS = findViewById(R.id.seconds);
-            final TextView tvM = findViewById(R.id.minutes);
             final var locale = Locale.getDefault();
             tvS.setText(String.format(locale,"%02d", time % Constants.SEC_PER_MIN));
-            tvM.setText(String.format(locale,"%02d", time / Constants.SEC_PER_MIN));
         });
     }
 
@@ -85,11 +138,17 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
     }
 
     // forward event listener methods to the model
-    public void onStartStop(final View view) {
-        model.onStartStop();
+    public void onAction(final View view) {
+        model.onAction();
     }
 
     public void onLapReset(final View view)  {
         model.onLapReset();
     }
+
+    public void onStartStop(View view) {
+        model.onStartStop();
+    }
+
+    public void onDecrement(final View view) {model.onDecrement();}
 }

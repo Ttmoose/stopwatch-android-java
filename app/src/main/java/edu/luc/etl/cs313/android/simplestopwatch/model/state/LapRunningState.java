@@ -18,7 +18,7 @@ class LapRunningState implements StopwatchState {
 
     @Override
     public void onLapReset() {
-        sm.toRunningState();
+        sm.toAlarmingState();
         sm.actionUpdateView();
     }
 
@@ -26,6 +26,17 @@ class LapRunningState implements StopwatchState {
     public void onTick() {
         sm.actionInc();
         sm.toLapRunningState();
+    }
+
+    @Override
+    public void onAction() {
+        sm.actionIncCount();
+        sm.toIncrementingState();
+    }
+
+    @Override
+    public void onDecrement() {
+        sm.toDecrementingState(); // Transition to DecrementingState when ticking starts
     }
 
     @Override
