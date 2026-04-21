@@ -3,7 +3,7 @@ package edu.luc.etl.cs313.android.simplestopwatch.test.model;
 import org.junit.After;
 import org.junit.Before;
 
-import edu.luc.etl.cs313.android.simplestopwatch.model.state.DefaultTimerStateMachine;
+import edu.luc.etl.cs313.android.simplestopwatch.model.state.DefaultStopwatchStateMachine;
 
 /**
  * Concrete testcase subclass for the default stopwatch state machine
@@ -15,9 +15,9 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.state.DefaultTimerStateMa
 public class DefaultStopwatchStateMachineTest extends AbstractStopwatchStateMachineTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
-        setModel(new DefaultTimerStateMachine(getDependency(), getDependency()));
+        setModel(new DefaultStopwatchStateMachine(getDependency(), getDependency()));
     }
 
     @After

@@ -1,8 +1,9 @@
 package edu.luc.etl.cs313.android.simplestopwatch.test.model;
 
+import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.MAX_TIME;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.After;
 import org.junit.Before;
@@ -16,13 +17,7 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.state.StopwatchStateMachi
 import edu.luc.etl.cs313.android.simplestopwatch.model.time.TimeModel;
 
 /**
- * Testcase superclass for the stopwatch state machine model. Unit-tests the state
- * machine in fast-forward mode by directly triggering successive tick events
- * without the presence of a pseudo-real-time clock. Uses a single unified mock
- * object for all dependencies of the state machine model.
- *
- * @author laufer
- * @see http://xunitpatterns.com/Testcase%20Superclass.html
+ * Testcase superclass for the timer state machine model.
  */
 public abstract class AbstractStopwatchStateMachineTest {
 
@@ -31,7 +26,7 @@ public abstract class AbstractStopwatchStateMachineTest {
     private UnifiedMockDependency dependency;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         dependency = new UnifiedMockDependency();
     }
 
@@ -40,128 +35,180 @@ public abstract class AbstractStopwatchStateMachineTest {
         dependency = null;
     }
 
-    /**
-     * Setter for dependency injection. Usually invoked by concrete testcase
-     * subclass.
-     *
-     * @param model
-     */
     protected void setModel(final StopwatchStateMachine model) {
         this.model = model;
-        if (model == null)
+        if (model == null) {
             return;
+        }
         this.model.setModelListener(dependency);
         this.model.actionInit();
+        dependency.resetSignalCounters();
     }
 
     protected UnifiedMockDependency getDependency() {
         return dependency;
     }
 
-    /**
-     * Verifies that we're initially in the stopped state (and told the listener
-     * about it).
-     */
     @Test
     public void testPreconditions() {
         assertEquals(R.string.STOPPED, dependency.getState());
+        assertTimeEquals(0);
+        assertFalse(dependency.isClockRunning());
     }
 
-    /**
-     * Verifies the following scenario: time is 0, press start, wait 5+ seconds,
-     * expect time 5.
-     */
     @Test
-    public void testScenarioRun() {
-        assertTimeEquals(0);
-        assertFalse(dependency.isStarted());
-        // directly invoke the button press event handler methods
-        model.onStartStop();
-        assertTrue(dependency.isStarted());
-        onTickRepeat(5);
-        assertTimeEquals(5);
-    }
+    public void testScenarioAutoStartAfterThreeTicks() {
+        model.onAction();
+        assertEquals(R.string.WAITING, dependency.getState());
+        assertTimeEquals(1);
+        assertTrue(dependency.isClockRunning());
+        assertEquals(0, dependency.getBeepCount());
 
-    /**
-     * Verifies the following scenario: time is 0, press start, wait 5+ seconds,
-     * expect time 5, press lap, wait 4 seconds, expect time 5, press start,
-     * expect time 5, press lap, expect time 9, press lap, expect time 0.
-     *
-     * @throws Throwable
-     */
-    @Test
-    public void testScenarioRunLapReset() {
-        assertTimeEquals(0);
-        assertFalse(dependency.isStarted());
-        // directly invoke the button press event handler methods
-        model.onStartStop();
+        onTickRepeat(2);
+        assertEquals(R.string.WAITING, dependency.getState());
+        assertTimeEquals(1);
+
+        model.onTick();
         assertEquals(R.string.RUNNING, dependency.getState());
-        assertTrue(dependency.isStarted());
-        onTickRepeat(5);
-        assertTimeEquals(5);
-        model.onLapReset();
-        assertEquals(R.string.LAP_RUNNING, dependency.getState());
-        assertTrue(dependency.isStarted());
-        onTickRepeat(4);
-        assertTimeEquals(5);
-        model.onStartStop();
-        assertEquals(R.string.LAP_STOPPED, dependency.getState());
-        assertFalse(dependency.isStarted());
-        assertTimeEquals(5);
-        model.onLapReset();
-        assertEquals(R.string.STOPPED, dependency.getState());
-        assertFalse(dependency.isStarted());
-        assertTimeEquals(9);
-        model.onLapReset();
-        assertEquals(R.string.STOPPED, dependency.getState());
-        assertFalse(dependency.isStarted());
+        assertTimeEquals(1);
+        assertEquals(1, dependency.getBeepCount());
+        assertTrue(dependency.isClockRunning());
+
+        model.onTick();
+        assertEquals(R.string.ALARMING, dependency.getState());
         assertTimeEquals(0);
+        assertFalse(dependency.isClockRunning());
+        assertTrue(dependency.isAlarmRunning());
+        assertEquals(1, dependency.getAlarmStartCount());
     }
 
-    /**
-     * Sends the given number of tick events to the model.
-     *
-     *  @param n the number of tick events
-     */
+    @Test
+    public void testScenarioAdditionalPressResetsWaitingWindow() {
+        model.onAction();
+        onTickRepeat(2);
+
+        model.onAction();
+        assertEquals(R.string.WAITING, dependency.getState());
+        assertTimeEquals(2);
+        assertTrue(dependency.isClockRunning());
+
+        onTickRepeat(2);
+        assertEquals(R.string.WAITING, dependency.getState());
+        assertTimeEquals(2);
+        assertEquals(0, dependency.getBeepCount());
+
+        model.onTick();
+        assertEquals(R.string.RUNNING, dependency.getState());
+        assertEquals(1, dependency.getBeepCount());
+    }
+
+    @Test
+    public void testScenarioMaximumStartsImmediately() {
+        for (var i = 0; i < MAX_TIME; i++) {
+            model.onAction();
+        }
+
+        assertEquals(R.string.RUNNING, dependency.getState());
+        assertTimeEquals(MAX_TIME);
+        assertTrue(dependency.isClockRunning());
+        assertEquals(1, dependency.getBeepCount());
+    }
+
+    @Test
+    public void testScenarioDirectStartFromTypedTime() {
+        model.onSetTime(7);
+
+        assertEquals(R.string.RUNNING, dependency.getState());
+        assertTimeEquals(7);
+        assertTrue(dependency.isClockRunning());
+        assertEquals(1, dependency.getBeepCount());
+
+        model.onTick();
+        assertTimeEquals(6);
+    }
+
+    @Test
+    public void testScenarioRunningCancelResetsToStopped() {
+        model.onAction();
+        onTickRepeat(3);
+        assertEquals(R.string.RUNNING, dependency.getState());
+
+        model.onAction();
+        assertEquals(R.string.STOPPED, dependency.getState());
+        assertTimeEquals(0);
+        assertFalse(dependency.isClockRunning());
+    }
+
+    @Test
+    public void testScenarioAlarmAcknowledgementStopsAlarm() {
+        model.onAction();
+        onTickRepeat(4);
+        assertEquals(R.string.ALARMING, dependency.getState());
+        assertTrue(dependency.isAlarmRunning());
+
+        model.onAction();
+        assertEquals(R.string.STOPPED, dependency.getState());
+        assertTimeEquals(0);
+        assertFalse(dependency.isAlarmRunning());
+        assertEquals(1, dependency.getAlarmStopCount());
+    }
+
     protected void onTickRepeat(final int n) {
-        for (var i = 0; i < n; i++)
+        for (var i = 0; i < n; i++) {
             model.onTick();
+        }
     }
 
-    /**
-     * Checks whether the model has invoked the expected time-keeping
-     * methods on the mock object.
-     */
     protected void assertTimeEquals(final int t) {
         assertEquals(t, dependency.getTime());
     }
 }
 
-/**
- * Manually implemented mock object that unifies the three dependencies of the
- * stopwatch state machine model. The three dependencies correspond to the three
- * interfaces this mock object implements.
- *
- * @author laufer
- */
 class UnifiedMockDependency implements TimeModel, ClockModel, StopwatchModelListener {
 
-    private int timeValue = -1, stateId = -1;
+    private int timeValue = -1;
 
-    private int runningTime = 0, lapTime = -1;
+    private int stateId = -1;
 
-    private boolean started = false;
+    private boolean clockRunning = false;
 
-    public int getTime() {
-        return timeValue;
-    }
+    private boolean alarmRunning = false;
+
+    private int beepCount = 0;
+
+    private int alarmStartCount = 0;
+
+    private int alarmStopCount = 0;
 
     public int getState() {
         return stateId;
     }
 
-    public boolean isStarted() {
-        return started;
+    public boolean isClockRunning() {
+        return clockRunning;
+    }
+
+    public boolean isAlarmRunning() {
+        return alarmRunning;
+    }
+
+    public int getBeepCount() {
+        return beepCount;
+    }
+
+    public int getAlarmStartCount() {
+        return alarmStartCount;
+    }
+
+    public int getAlarmStopCount() {
+        return alarmStopCount;
+    }
+
+    public void resetSignalCounters() {
+        beepCount = 0;
+        alarmStartCount = 0;
+        alarmStopCount = 0;
+        alarmRunning = false;
     }
 
     @Override
@@ -175,52 +222,69 @@ class UnifiedMockDependency implements TimeModel, ClockModel, StopwatchModelList
     }
 
     @Override
-    public void setTickListener(TickListener listener) {
+    public void playBeep() {
+        beepCount++;
+    }
+
+    @Override
+    public void startAlarmSound() {
+        alarmRunning = true;
+        alarmStartCount++;
+    }
+
+    @Override
+    public void stopAlarmSound() {
+        alarmRunning = false;
+        alarmStopCount++;
+    }
+
+    @Override
+    public void setTickListener(final TickListener listener) {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public void start() {
-        started = true;
+        clockRunning = true;
     }
 
     @Override
     public void stop() {
-        started = false;
+        clockRunning = false;
     }
 
     @Override
-    public void resetRuntime() {
-        runningTime = 0;
+    public void resetTime() {
+        timeValue = 0;
     }
 
     @Override
-    public void incRuntime() {
-        runningTime++;
+    public void setTime(final int time) {
+        timeValue = Math.max(0, Math.min(MAX_TIME, time));
     }
 
     @Override
-    public int getRuntime() {
-        return runningTime;
+    public void incrementTime() {
+        timeValue = Math.min(MAX_TIME, timeValue + 1);
     }
 
     @Override
-    public void setLaptime() {
-        lapTime = runningTime;
+    public void decrementTime() {
+        timeValue = Math.max(0, timeValue - 1);
     }
 
     @Override
-    public int getLaptime() {
-        return lapTime;
+    public int getTime() {
+        return timeValue;
     }
 
     @Override
-    public void setRunCount(int runCount) {
-        runningTime = runCount;
+    public boolean isZero() {
+        return timeValue == 0;
     }
 
     @Override
-    public void decRunTime() {
-        runningTime--;
+    public boolean isMax() {
+        return timeValue == MAX_TIME;
     }
 }

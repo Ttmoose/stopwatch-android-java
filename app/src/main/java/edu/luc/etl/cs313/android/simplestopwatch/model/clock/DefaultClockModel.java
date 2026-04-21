@@ -23,11 +23,8 @@ public class DefaultClockModel implements ClockModel {
 
     @Override
     public void start() {
-
-
+        stop();
         timer = new Timer();
-
-
         // The clock model runs onTick every 1000 milliseconds
         timer.schedule(new TimerTask() {
             @Override public void run() {
@@ -39,8 +36,9 @@ public class DefaultClockModel implements ClockModel {
 
     @Override
     public void stop() {
-        timer.cancel();
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
     }
-
-
 }

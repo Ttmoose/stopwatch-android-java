@@ -1,46 +1,47 @@
 package edu.luc.etl.cs313.android.simplestopwatch.model.time;
 
-import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.*;
+import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.MAX_TIME;
+import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.SEC_PER_TICK;
 
 /**
- * An implementation of the stopwatch data model.
+ * An implementation of the timer data model.
  */
 public class DefaultTimeModel implements TimeModel {
 
-    private int runningTime = 0;
-
-    private int lapTime = -1;
+    private int time = 0;
 
     @Override
-    public void resetRuntime() {
-        runningTime = 0;
+    public void resetTime() {
+        time = 0;
     }
 
     @Override
-    public void incRuntime() {
-        runningTime = (runningTime + SEC_PER_TICK) % SEC_PER_HOUR;
+    public void setTime(final int time) {
+        this.time = Math.max(0, Math.min(MAX_TIME, time));
     }
 
     @Override
-    public int getRuntime() {
-        return runningTime;
+    public void incrementTime() {
+        time = Math.min(MAX_TIME, time + SEC_PER_TICK);
     }
 
     @Override
-    public void setLaptime() {
-        lapTime = runningTime;
+    public void decrementTime() {
+        time = Math.max(0, time - SEC_PER_TICK);
     }
 
     @Override
-    public int getLaptime() {
-        return lapTime;
+    public int getTime() {
+        return time;
     }
 
     @Override
-    public void setRunCount(int runCount) {
-        runningTime = runCount;
+    public boolean isZero() {
+        return time == 0;
     }
 
     @Override
-    public void decRunTime() { runningTime = (runningTime - SEC_PER_TICK); }
+    public boolean isMax() {
+        return time == MAX_TIME;
+    }
 }

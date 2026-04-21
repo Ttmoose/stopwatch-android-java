@@ -1,17 +1,17 @@
 package edu.luc.etl.cs313.android.simplestopwatch.model.time;
 
 /**
- * The passive data model of the stopwatch.
+ * The passive data model of the timer.
  * It does not emit any events.
  *
  * @author laufer
  */
 public interface TimeModel {
-    void resetRuntime();
-    void incRuntime();
-    int getRuntime();
-    void setLaptime();
-    int getLaptime();
-    void setRunCount(int count);
-    void decRunTime();
+    void resetTime();
+    void setTime(int time);
+    void incrementTime();
+    void decrementTime();
+    int getTime();
+    boolean isZero();
+    boolean isMax();
 }

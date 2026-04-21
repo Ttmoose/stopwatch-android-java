@@ -11,85 +11,174 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.time.TimeModel;
  */
 public class DefaultStopwatchStateMachine implements StopwatchStateMachine {
 
+    private final TimeModel timeModel;
+
+    private final ClockModel clockModel;
+
+    private final StopwatchState stoppedState = new StoppedState(this);
+
+    private final StopwatchState waitingState = new WaitingState(this);
+
+    private final StopwatchState runningState = new RunningState(this);
+
+    private final StopwatchState alarmingState = new AlarmingState(this);
+
+    private int tickCount = 0;
+
+    private boolean clockRunning = false;
+
+    private StopwatchState state;
+
+    private StopwatchModelListener listener;
+
     public DefaultStopwatchStateMachine(final TimeModel timeModel, final ClockModel clockModel) {
         this.timeModel = timeModel;
         this.clockModel = clockModel;
     }
 
-    private final TimeModel timeModel;
-
-    private final ClockModel clockModel;
-
-    private int runCount = 0;
-
-    private int tickCount = 0;
-
-
-    /**
-     * The internal state of this adapter component. Required for the State pattern.
-     */
-    private StopwatchState state;
-
     protected void setState(final StopwatchState state) {
         this.state = state;
-        listener.onStateUpdate(state.getId());
+        if (listener != null) {
+            listener.onStateUpdate(state.getId());
+        }
     }
-
-    private StopwatchModelListener listener;
 
     @Override
     public void setModelListener(final StopwatchModelListener listener) {
         this.listener = listener;
     }
 
-    // forward event uiUpdateListener methods to the current state
-    // these must be synchronized because events can come from the
-    // UI thread or the timer thread
-    @Override public synchronized void onStartStop() { state.onStartStop(); }
-    @Override public synchronized void onLapReset()  { state.onLapReset(); }
-    @Override public synchronized void onTick()      { state.onTick(); }
-    @Override public synchronized void onAction()    { state.onAction(); }
-    @Override public synchronized void onDecrement() { state.onDecrement(); }
+    @Override
+    public synchronized void onAction() {
+        state.onAction();
+    }
 
-    @Override public void updateUIRuntime() { listener.onTimeUpdate(timeModel.getRuntime()); }
-    @Override public void updateUILaptime() { listener.onTimeUpdate(timeModel.getLaptime()); }
+    @Override
+    public synchronized void onSetTime(final int time) {
+        state.onSetTime(time);
+    }
 
-    // known states
-    private final StopwatchState STOPPED      = new StoppedState(this);
-    private final StopwatchState RUNNING      = new RunningState(this);
-    private final StopwatchState ALARMING     = new AlarmingState(this);
-    private final StopwatchState LAP_RUNNING  = new LapRunningState(this);
-    private final StopwatchState LAP_STOPPED  = new LapStoppedState(this);
-    private final StopwatchState INCREMENTING = new IncrementingState(this);
-    private final StopwatchState DECREMENTING = new DecrementingState(this);
+    @Override
+    public synchronized void onTick() {
+        state.onTick();
+    }
 
-    // transitions
-    @Override public void toRunningState()      { setState(RUNNING); }
-    @Override public void toAlarmingState()     { setState(ALARMING); }
-    @Override public void toStoppedState()      { setState(STOPPED); }
-    @Override public void toLapRunningState()   { setState(LAP_RUNNING); }
-    @Override public void toLapStoppedState()   { setState(LAP_STOPPED); }
-    @Override public void toIncrementingState() { setState(INCREMENTING);  }
-    @Override public void toDecrementingState() { setState(DECREMENTING); }
+    @Override
+    public void updateUITime() {
+        listener.onTimeUpdate(timeModel.getTime());
+    }
 
-    // actions
-    @Override public void actionInit()          { resetTickCount(); runCount = 0; toStoppedState(); actionReset(); }
-    @Override public void actionReset()         { timeModel.resetRuntime(); actionUpdateView(); }
-    @Override public void actionStart()         { clockModel.start(); }
-    @Override public void actionStop()          { clockModel.stop(); }
-    @Override public void actionLap()           { timeModel.setLaptime(); }
-    @Override public void actionInc()           { timeModel.incRuntime(); }
-    @Override public void actionUpdateView()    { state.updateView(); }
-    @Override public void actionIncCount()      { runCount++; timeModel.setRunCount(runCount); actionUpdateView(); }
-    @Override public void actionDecCount()      { runCount = Math.max(0, runCount - 1); timeModel.setRunCount(runCount); actionUpdateView(); }
-    @Override public void actionResetRunCount() { runCount = 0; timeModel.setRunCount(runCount); actionUpdateView(); }
-    @Override public void actionRingTheAlarm()  { listener.playDefaultNotification(); }
-    @Override public void actionBeep()          { listener.playBeep(); }
+    @Override
+    public void toAlarmingState() {
+        setState(alarmingState);
+    }
 
-    // methods to assist with incrementing/decrementing
-    @Override public void incTickCount()   { tickCount++; }
-    @Override public int getTickCount()    { return tickCount; }
-    @Override public void resetTickCount() { tickCount = 0; }
-    @Override public int getRunCount()     { return runCount; }
+    @Override
+    public void toRunningState() {
+        setState(runningState);
+    }
 
+    @Override
+    public void toWaitingState() {
+        setState(waitingState);
+    }
+
+    @Override
+    public void toStoppedState() {
+        setState(stoppedState);
+    }
+
+    @Override
+    public void actionInit() {
+        actionStopClock();
+        actionStopAlarm();
+        resetTickCount();
+        toStoppedState();
+        actionResetTime();
+    }
+
+    @Override
+    public void actionResetTime() {
+        timeModel.resetTime();
+        actionUpdateView();
+    }
+
+    @Override
+    public void actionSetTime(final int time) {
+        timeModel.setTime(time);
+        actionUpdateView();
+    }
+
+    @Override
+    public void actionIncrementTime() {
+        timeModel.incrementTime();
+        actionUpdateView();
+    }
+
+    @Override
+    public void actionDecrementTime() {
+        timeModel.decrementTime();
+        actionUpdateView();
+    }
+
+    @Override
+    public void actionStartClock() {
+        if (!clockRunning) {
+            clockModel.start();
+            clockRunning = true;
+        }
+    }
+
+    @Override
+    public void actionStopClock() {
+        if (clockRunning) {
+            clockModel.stop();
+            clockRunning = false;
+        }
+    }
+
+    @Override
+    public void actionUpdateView() {
+        state.updateView();
+    }
+
+    @Override
+    public void actionBeep() {
+        listener.playBeep();
+    }
+
+    @Override
+    public void actionStartAlarm() {
+        listener.startAlarmSound();
+    }
+
+    @Override
+    public void actionStopAlarm() {
+        listener.stopAlarmSound();
+    }
+
+    @Override
+    public void incTickCount() {
+        tickCount++;
+    }
+
+    @Override
+    public int getTickCount() {
+        return tickCount;
+    }
+
+    @Override
+    public void resetTickCount() {
+        tickCount = 0;
+    }
+
+    @Override
+    public boolean isTimeZero() {
+        return timeModel.isZero();
+    }
+
+    @Override
+    public boolean isTimeMax() {
+        return timeModel.isMax();
+    }
 }

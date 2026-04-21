@@ -10,6 +10,7 @@ package edu.luc.etl.cs313.android.simplestopwatch.common;
 public interface StopwatchModelListener {
     void onTimeUpdate(int timeValue);
     void onStateUpdate(int stateId);
-    void playDefaultNotification();  // triggers alarm notification sound when stopwatch reaches set event
-    void playBeep();  // triggers beep tone when stopwatch reaches set event
+    void playBeep();
+    void startAlarmSound();
+    void stopAlarmSound();
 }

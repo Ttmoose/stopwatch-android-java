@@ -1,9 +1,8 @@
 package edu.luc.etl.cs313.android.simplestopwatch.test.model;
 
-import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.SEC_PER_HOUR;
-import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.SEC_PER_MIN;
-import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.SEC_PER_TICK;
+import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.MAX_TIME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -13,77 +12,74 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.time.TimeModel;
 /**
  * Testcase superclass for the time model abstraction.
  * This is a simple unit test of an object without dependencies.
- *
- * @author laufer
- * @see http://xunitpatterns.com/Testcase%20Superclass.html
  */
 public abstract class AbstractTimeModelTest {
 
     private TimeModel model;
 
-    /**
-     * Setter for dependency injection. Usually invoked by concrete testcase
-     * subclass.
-     *
-     * @param model
-     */
     protected void setModel(final TimeModel model) {
         this.model = model;
     }
 
-    /**
-     * Verifies that runtime and laptime are initially 0 or less.
-     */
     @Test
     public void testPreconditions() {
-        assertEquals(0, model.getRuntime());
-        assertTrue(model.getLaptime() <= 0);
+        assertEquals(0, model.getTime());
+        assertTrue(model.isZero());
+        assertFalse(model.isMax());
     }
 
-    /**
-     * Verifies that runtime is incremented correctly.
-     */
     @Test
-    public void testIncrementRuntimeOne() {
-        final var rt = model.getRuntime();
-        final var lt = model.getLaptime();
-        model.incRuntime();
-        assertEquals((rt + SEC_PER_TICK) % SEC_PER_MIN, model.getRuntime());
-        assertEquals(lt, model.getLaptime());
+    public void testIncrementTimeOne() {
+        model.incrementTime();
+        assertEquals(1, model.getTime());
+        assertFalse(model.isZero());
     }
 
-    /**
-     * Verifies that runtime turns over correctly.
-     */
     @Test
-    public void testIncrementRuntimeMany() {
-        final int rt = model.getRuntime();
-        final int lt = model.getLaptime();
-        for (int i = 0; i < SEC_PER_HOUR; i ++) {
-            model.incRuntime();
-        }
-        assertEquals(rt, model.getRuntime());
-        assertEquals(lt, model.getLaptime());
+    public void testSetTimeWithinRange() {
+        model.setTime(42);
+        assertEquals(42, model.getTime());
+        assertFalse(model.isZero());
+        assertFalse(model.isMax());
     }
 
-    /**
-     * Verifies that laptime works correctly.
-     */
     @Test
-    public void testLaptime() {
-        final var rt = model.getRuntime();
-        final var lt = model.getLaptime();
-        for (var i = 0; i < 5; i ++) {
-            model.incRuntime();
+    public void testSetTimeStopsAtMaximum() {
+        model.setTime(MAX_TIME + 7);
+        assertEquals(MAX_TIME, model.getTime());
+        assertTrue(model.isMax());
+    }
+
+    @Test
+    public void testIncrementTimeStopsAtMaximum() {
+        for (var i = 0; i < MAX_TIME + 5; i++) {
+            model.incrementTime();
         }
-        assertEquals(rt + 5, model.getRuntime());
-        assertEquals(lt, model.getLaptime());
-        model.setLaptime();
-        assertEquals(rt + 5, model.getLaptime());
-        for (var i = 0; i < 5; i ++) {
-            model.incRuntime();
-        }
-        assertEquals(rt + 10, model.getRuntime());
-        assertEquals(rt + 5, model.getLaptime());
+        assertEquals(MAX_TIME, model.getTime());
+        assertTrue(model.isMax());
+    }
+
+    @Test
+    public void testDecrementTimeOne() {
+        model.incrementTime();
+        model.incrementTime();
+        model.decrementTime();
+        assertEquals(1, model.getTime());
+    }
+
+    @Test
+    public void testDecrementTimeStopsAtZero() {
+        model.decrementTime();
+        assertEquals(0, model.getTime());
+        assertTrue(model.isZero());
+    }
+
+    @Test
+    public void testResetTime() {
+        model.incrementTime();
+        model.incrementTime();
+        model.resetTime();
+        assertEquals(0, model.getTime());
+        assertTrue(model.isZero());
     }
 }

@@ -1,12 +1,12 @@
 package edu.luc.etl.cs313.android.simplestopwatch.model.state;
-
+import static edu.luc.etl.cs313.android.simplestopwatch.common.Constants.WAITING_TICKS;
 import edu.luc.etl.cs313.android.simplestopwatch.R;
 
-class StoppedState implements StopwatchState {
+class WaitingState implements StopwatchState {
 
     private final StopwatchSMStateView sm;
 
-    public StoppedState(final StopwatchSMStateView sm) {
+    WaitingState(final StopwatchSMStateView sm) {
         this.sm = sm;
     }
 
@@ -14,6 +14,7 @@ class StoppedState implements StopwatchState {
     public void onAction() {
         sm.actionIncrementTime();
         sm.resetTickCount();
+        sm.actionStopClock();
         sm.actionStartClock();
         if (sm.isTimeMax()) {
             sm.actionBeep();
@@ -25,20 +26,17 @@ class StoppedState implements StopwatchState {
 
     @Override
     public void onSetTime(final int time) {
-        if (time <= 0) {
-            return;
-        }
-        sm.actionSetTime(time);
-        sm.resetTickCount();
-        sm.actionStopAlarm();
-        sm.actionStartClock();
-        sm.actionBeep();
-        sm.toRunningState();
+        // Direct entry is only allowed while stopped.
     }
 
     @Override
     public void onTick() {
-        // Ignore any stale tick that arrives after the clock was stopped.
+        sm.incTickCount();
+        if (sm.getTickCount() >= WAITING_TICKS) {
+            sm.resetTickCount();
+            sm.actionBeep();
+            sm.toRunningState();
+        }
     }
 
     @Override
@@ -48,6 +46,6 @@ class StoppedState implements StopwatchState {
 
     @Override
     public int getId() {
-        return R.string.STOPPED;
+        return R.string.WAITING;
     }
 }

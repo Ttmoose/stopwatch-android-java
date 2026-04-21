@@ -1,21 +1,23 @@
 package edu.luc.etl.cs313.android.simplestopwatch.android;
 
 import android.app.Activity;
-import android.media.AudioManager; // for managing audio streams
-import android.media.MediaPlayer; // for playing the bundled alarm sound
-import android.media.ToneGenerator;  // for generating simple tones for the beep
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.view.inputmethod.EditorInfo;
 
 import java.util.Locale;
 
 import edu.luc.etl.cs313.android.simplestopwatch.R;
-import edu.luc.etl.cs313.android.simplestopwatch.common.Constants;
 import edu.luc.etl.cs313.android.simplestopwatch.common.StopwatchModelListener;
 import edu.luc.etl.cs313.android.simplestopwatch.model.ConcreteStopwatchModelFacade;
 import edu.luc.etl.cs313.android.simplestopwatch.model.StopwatchModelFacade;
@@ -27,48 +29,63 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.StopwatchModelFacade;
  */
 public class StopwatchAdapter extends Activity implements StopwatchModelListener {
 
-    private static String TAG = "stopwatch-android-activity";
-
-    /**
-     * The state-based dynamic model.
-     */
     private StopwatchModelFacade model;
-    private volatile int currentStateId = R.string.STOPPED;
+
+    private MediaPlayer alarmPlayer;
+
+    private boolean stoppedState = true;
 
     protected void setModel(final StopwatchModelFacade model) {
         this.model = model;
     }
 
-    /** Plays the bundled alarm sound. */
-    public void playDefaultNotification(){
-        final MediaPlayer mediaPlayer =
-                MediaPlayer.create(this, R.raw.app_src_main_res_raw_alarm_beep);
-        if (mediaPlayer == null) {
-            return;
-        }
-        mediaPlayer.setOnCompletionListener(MediaPlayer::release);
-        mediaPlayer.start();
+    @Override
+    public void playBeep() {
+        runOnUiThread(() -> {
+            final ToneGenerator toneGenerator =
+                    new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+            toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300);
+            new Handler(Looper.getMainLooper()).postDelayed(toneGenerator::release, 300);
+        });
     }
 
-    /** plays the beep sound that happens before decrementing */
-    public void playBeep(){
-        // ToneGenerator instance with specific stream type & volume
-        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
-        // play a short beep tone
-        toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300);
-        // release ToneGenerator after a delay to ensure the tone completes
-        new Handler(Looper.getMainLooper()).postDelayed(toneGenerator::release, 200);
+    @Override
+    public void startAlarmSound() {
+        runOnUiThread(() -> {
+            if (alarmPlayer == null) {
+                alarmPlayer = MediaPlayer.create(this, R.raw.app_src_main_res_raw_alarm_beep);
+                if (alarmPlayer == null) {
+                    return;
+                }
+                alarmPlayer.setLooping(true);
+            }
+            if (!alarmPlayer.isPlaying()) {
+                alarmPlayer.start();
+            }
+        });
+    }
+
+    @Override
+    public void stopAlarmSound() {
+        runOnUiThread(() -> {
+            if (alarmPlayer == null) {
+                return;
+            }
+            if (alarmPlayer.isPlaying()) {
+                alarmPlayer.stop();
+            }
+            alarmPlayer.release();
+            alarmPlayer = null;
+        });
     }
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // inject dependency on view so this adapter receives UI events
         setContentView(R.layout.activity_main);
-        // inject dependency on model into this so model receives UI events
-        this.setModel(new ConcreteStopwatchModelFacade());
-        // inject dependency on this into model to register for UI updates
+        setModel(new ConcreteStopwatchModelFacade());
         model.setModelListener(this);
+        configureManualInput();
     }
 
     @Override
@@ -83,14 +100,18 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
         model.start();
     }
 
-    // TODO remaining lifecycle methods
+    @Override
+    protected void onStop() {
+        stopAlarmSound();
+        super.onStop();
+    }
 
     /**
-     * Updates the seconds and minutes in the UI.
+     * Updates the displayed time in the UI.
+     *
      * @param time
      */
     public void onTimeUpdate(final int time) {
-        // UI adapter responsibility to schedule incoming events on UI thread
         runOnUiThread(() -> {
             final TextView tvS = findViewById(R.id.seconds);
             final var locale = Locale.getDefault();
@@ -100,32 +121,26 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
 
     /**
      * Updates the state name in the UI.
+     *
      * @param stateId
      */
     public void onStateUpdate(final int stateId) {
-        currentStateId = stateId;
-        // UI adapter responsibility to schedule incoming events on UI thread
         runOnUiThread(() -> {
+            stoppedState = stateId == R.string.STOPPED;
             final TextView stateName = findViewById(R.id.stateName);
             final TextView stateHint = findViewById(R.id.stateHint);
             final Button actionButton = findViewById(R.id.onAction);
             stateName.setText(getString(stateId));
             stateHint.setText(getStateHint(stateId));
             actionButton.setText(getActionLabel(stateId));
-            actionButton.setEnabled(isPrimaryButtonEnabled(stateId));
+            actionButton.setEnabled(true);
+            updateManualInputState();
         });
     }
 
-    private boolean isPrimaryButtonEnabled(final int stateId) {
-        return stateId == R.string.STOPPED || stateId == R.string.ALARMING;
-    }
-
     private int getStateHint(final int stateId) {
-        if (stateId == R.string.INCREMENTING) {
-            return R.string.state_hint_incrementing;
-        }
-        if (stateId == R.string.DECREMENTING) {
-            return R.string.state_hint_decrementing;
+        if (stateId == R.string.WAITING) {
+            return R.string.state_hint_waiting;
         }
         if (stateId == R.string.ALARMING) {
             return R.string.state_hint_alarming;
@@ -133,55 +148,83 @@ public class StopwatchAdapter extends Activity implements StopwatchModelListener
         if (stateId == R.string.RUNNING) {
             return R.string.state_hint_running;
         }
-        if (stateId == R.string.LAP_RUNNING) {
-            return R.string.state_hint_lap_running;
-        }
-        if (stateId == R.string.LAP_STOPPED) {
-            return R.string.state_hint_lap_stopped;
-        }
         return R.string.state_hint_stopped;
     }
 
     private int getActionLabel(final int stateId) {
-        if (stateId == R.string.INCREMENTING) {
-            return R.string.activate_more;
-        }
-        if (stateId == R.string.DECREMENTING) {
-            return R.string.activate_cancel;
-        }
         if (stateId == R.string.ALARMING) {
-            return R.string.activate_acknowledge;
+            return R.string.action_stop_alarm;
         }
-        if (stateId == R.string.RUNNING
-                || stateId == R.string.LAP_RUNNING
-                || stateId == R.string.LAP_STOPPED) {
-            return R.string.activate_disabled;
+        if (stateId == R.string.RUNNING) {
+            return R.string.action_reset_time;
         }
-        return R.string.activate_add;
+        return R.string.action_add_time;
     }
 
-    // forward event listener methods to the model
     public void onPrimaryButton(final View view) {
-        if (currentStateId == R.string.STOPPED) {
-            model.onStartStop();
+        if (submitTypedTimeIfPresent()) {
             return;
         }
-        if (currentStateId == R.string.ALARMING) {
-            model.onAction();
-        }
-    }
-
-    public void onAction(final View view) {
         model.onAction();
     }
 
-    public void onLapReset(final View view)  {
-        model.onLapReset();
+    private void configureManualInput() {
+        final EditText manualInput = findViewById(R.id.timerLabel);
+        manualInput.setOnEditorActionListener((textView, actionId, event) -> {
+            if (!isEnterAction(actionId, event)) {
+                return false;
+            }
+            return submitTypedTimeIfPresent();
+        });
+        updateManualInputState();
     }
 
-    public void onStartStop(View view) {
-        model.onStartStop();
+    private void updateManualInputState() {
+        final EditText manualInput = findViewById(R.id.timerLabel);
+        manualInput.setEnabled(stoppedState);
+        manualInput.setFocusable(stoppedState);
+        manualInput.setFocusableInTouchMode(stoppedState);
+        manualInput.setCursorVisible(stoppedState);
+        if (!stoppedState) {
+            manualInput.getText().clear();
+            manualInput.clearFocus();
+        }
     }
 
-    public void onDecrement(final View view) {model.onDecrement();}
+    private boolean submitTypedTimeIfPresent() {
+        if (!stoppedState) {
+            return false;
+        }
+        final EditText manualInput = findViewById(R.id.timerLabel);
+        final int typedTime = parseTypedTime(manualInput);
+        if (typedTime <= 0) {
+            return false;
+        }
+        model.onSetTime(typedTime);
+        manualInput.getText().clear();
+        manualInput.clearFocus();
+        return true;
+    }
+
+    private int parseTypedTime(final EditText manualInput) {
+        final String value = manualInput.getText().toString().trim();
+        if (value.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (final NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private boolean isEnterAction(final int actionId, final KeyEvent event) {
+        if (actionId == EditorInfo.IME_ACTION_DONE) {
+            return true;
+        }
+        return actionId == EditorInfo.IME_NULL
+                && event != null
+                && event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() == KeyEvent.KEYCODE_ENTER;
+    }
 }

@@ -4,50 +4,33 @@ import edu.luc.etl.cs313.android.simplestopwatch.R;
 
 class AlarmingState implements StopwatchState {
 
+    private final StopwatchSMStateView sm;
+
     public AlarmingState(final StopwatchSMStateView sm) {
         this.sm = sm;
     }
 
-    private final StopwatchSMStateView sm;
-
-
-
     @Override
-    public void onStartStop() {
-        sm.actionStop();
-        sm.actionResetRunCount();
+    public void onAction() {
+        sm.actionStopAlarm();
+        sm.resetTickCount();
+        sm.actionResetTime();
         sm.toStoppedState();
     }
 
     @Override
-    public void onLapReset() {
-        sm.actionStop();
-        sm.actionResetRunCount();
-        sm.toStoppedState();
+    public void onSetTime(final int time) {
+        // The direct-entry field is disabled while the alarm is active.
     }
 
     @Override
     public void onTick() {
-        // The alarm is triggered on entry; no periodic ticking should remain.
+        // The alarm continues until the user acknowledges it.
     }
-
-    @Override
-    public void onDecrement() {
-        // Ignore decrement requests while alarm is active.
-    }
-
-
-    @Override
-    public void onAction() {
-        sm.actionStop();
-        sm.actionResetRunCount();
-        sm.toStoppedState();
-    }
-
 
     @Override
     public void updateView() {
-        sm.updateUIRuntime();
+        sm.updateUITime();
     }
 
     @Override

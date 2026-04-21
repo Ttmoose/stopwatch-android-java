@@ -14,12 +14,12 @@ import edu.luc.etl.cs313.android.simplestopwatch.model.time.DefaultTimeModel;
 public class DefaultTimeModelTest extends AbstractTimeModelTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         setModel(new DefaultTimeModel());
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         setModel(null);
     }
 }
